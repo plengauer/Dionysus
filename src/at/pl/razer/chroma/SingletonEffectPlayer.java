@@ -1,5 +1,11 @@
 package at.pl.razer.chroma;
 
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +19,7 @@ public class SingletonEffectPlayer implements java.io.Closeable {
     private static final Object MONITOR = new Object();
     private static final Stack<SingletonEffectPlayer> PLAYERS = new Stack<>();
     private static boolean RUNNING = false;
+    private static Tracer TRACER = GlobalOpenTelemetry.getTracer("razer.chroma.manual", "1.0.0");
 
     private final Logger logger = Logger.getLogger(SingletonEffectPlayer.class.getName());
     private final String title, description;
@@ -35,7 +42,10 @@ public class SingletonEffectPlayer implements java.io.Closeable {
             MONITOR.notifyAll();
         }
         while (!Thread.currentThread().isInterrupted()) {
-            try {
+            Span span = TRACER.spanBuilder("Razer Chroma Singleton Effect Player").setSpanKind(SpanKind.SERVER).startSpan();
+            span.setAttribute("title", title);
+            span.setAttribute("description", description);
+            try (Scope __ = span.makeCurrent()) {
                 synchronized (MONITOR) {
                     if (PLAYERS.peek() == this) {
                         try {
@@ -67,6 +77,8 @@ public class SingletonEffectPlayer implements java.io.Closeable {
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+            } finally {
+                span.end();
             }
         }
         synchronized (MONITOR) {

@@ -1,3 +1,4 @@
 Manifest-Version: 1.0
 Main-Class: at.pl.dionysus.Main
+Class-Path: opentelemetry-api-1.12.0.jar opentelemetry-context-1.12.0.jar
 

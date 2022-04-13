@@ -1,5 +1,8 @@
 package at.pl.razer.chroma;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Scope;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,9 +17,10 @@ public class EffectPlayer implements java.io.Closeable {
     private final Thread thread;
 
     public EffectPlayer(SDK sdk, Effect effect) {
+        Span current = Span.current();
         this.sdk = sdk;
         this.effect = effect;
-        this.thread = new Thread(this::run);
+        this.thread = new Thread(() -> run(current));
 
         thread.start();
     }
@@ -39,14 +43,14 @@ public class EffectPlayer implements java.io.Closeable {
         thread.join(time);
     }
 
-    private void run() {
+    private void run(Span parent) {
         logger.info("running");
         int count = 0;
         int total = 0;
         List<String> effectIDs = new ArrayList<>();
         while (!thread.isInterrupted() && effect.hasNext()) {
             EffectFrame frame = effect.next();
-            try {
+            try (Scope __ = parent.makeCurrent()) {
                 long time = System.currentTimeMillis();
                 List<String> currentEffectIDs = new ArrayList<>();
                 for (EffectFrameDefinition definition : frame.getEffects()) {

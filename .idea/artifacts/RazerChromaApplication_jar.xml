@@ -5,6 +5,7 @@
       <element id="archive" name="Dionysus.jar">
         <element id="module-output" name="Dionysus" />
       </element>
+      <element id="library" level="project" name="io.opentelemetry.api" />
     </root>
   </artifact>
 </component>

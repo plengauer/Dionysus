@@ -1,6 +1,12 @@
 package at.pl.razer.chroma;
 
 import at.pl.razer.util.JSON;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -15,6 +21,7 @@ import java.util.logging.Logger;
 public class SDK implements Closeable {
 
     private static final String BASE_URI = "http://localhost:54235/razer/chromasdk";
+    private static Tracer TRACER = GlobalOpenTelemetry.getTracer("razer.chroma.manual", "1.0.0");
 
     private final Logger logger;
     private final HttpClient http = HttpClient.newBuilder().build();
@@ -124,17 +131,26 @@ public class SDK implements Closeable {
     }
 
     private String send(HttpRequest request, String key) throws IOException, InterruptedException {
-        logger.log(Level.FINEST, "HTTP {0} {1}", new Object[] { request.method(), request.uri() });
-        String response = http.send(request, HttpResponse.BodyHandlers.ofString()).body();
-        logger.log(Level.FINER, "HTTP {0} {1} -> {2}", new Object[] { request.method(), request.uri(), response });
-        String error = JSON.readField(response, "result");
-        if (error != null && Integer.parseInt(error) != 0) {
-            throw new IOException("Razer Chroma SDK Error " + error);
+        Span span = TRACER.spanBuilder("Razer Chroma SDK").startSpan();
+        try(Scope scope = span.makeCurrent()) {
+            logger.log(Level.FINEST, "HTTP {0} {1}", new Object[]{request.method(), request.uri()});
+            String response = http.send(request, HttpResponse.BodyHandlers.ofString()).body();
+            logger.log(Level.FINER, "HTTP {0} {1} -> {2}", new Object[]{request.method(), request.uri(), response});
+            String error = JSON.readField(response, "result");
+            if (error != null && Integer.parseInt(error) != 0) {
+                throw new IOException("Razer Chroma SDK Error " + error);
+            }
+            if (key != null) {
+                response = JSON.readField(response, key);
+            }
+            return response;
+        } catch (IOException | InterruptedException | RuntimeException e) {
+            span.setStatus(StatusCode.ERROR);
+            span.recordException(e);
+            throw e;
+        } finally {
+            span.end();
         }
-        if (key != null) {
-            response = JSON.readField(response, key);
-        }
-        return response;
     }
 
     private HttpRequest.Builder request(String endpoint) {
