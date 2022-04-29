@@ -1,1 +1,3 @@
-..\..\.jdks\openjdk-17.0.2\bin\java -verbose:gc -Xmx25m -Djava.util.logging.config.file=logging.properties -Ddionysus.delay=180 -jar Dionysus.jar default
+:start
+%JAVA_17_HOME%\bin\java.exe -verbose:gc -Xmx100m -Djava.util.logging.config.file=logging.properties -Dupdate=true -Ddionysus.delay=180 -jar Dionysus.jar default
+goto start

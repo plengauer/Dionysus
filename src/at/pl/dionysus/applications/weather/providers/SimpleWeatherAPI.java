@@ -22,7 +22,7 @@ public class SimpleWeatherAPI implements WeatherProvider {
     public String get() throws IOException, InterruptedException {
         logger.info("checking weather");
         String location = getLocation();
-        HttpRequest request = HttpRequest.newBuilder() .GET() .uri(URI.create("http://api.weatherapi.com/v1/current.json?key=" + API_KEY + "&q=" + location + "&aqi=yes")) .build();
+        HttpRequest request = HttpRequest.newBuilder().GET().uri(URI.create("http://api.weatherapi.com/v1/current.json?key=" + API_KEY + "&q=" + location + "&aqi=yes")).build();
         String json = http.send(request, HttpResponse.BodyHandlers.ofString()).body();
         String weather = JSON.readField(json, "text");
         logger.log(Level.INFO, "weather \"{0}\"", weather);
