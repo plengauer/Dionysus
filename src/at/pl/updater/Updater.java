@@ -46,8 +46,7 @@ public class Updater implements AutoCloseable {
     private void run() {
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                cleanup();
-                if (update()) {
+                if (cleanup() | update()) {
                     restart.execute();
                     Thread.currentThread().interrupt();
                 } else {
@@ -62,7 +61,7 @@ public class Updater implements AutoCloseable {
         }
     }
 
-    private void cleanup() throws IOException {
+    private boolean cleanup() throws IOException {
         LOGGER.info("cleaning");
         if (provideFiles().anyMatch(file -> file.endsWith(".new"))) {
             LOGGER.info("cleaning new files and restoring old files");
@@ -72,9 +71,11 @@ public class Updater implements AutoCloseable {
                 new File(other).delete();
                 move(file, other);
             });
+            return true;
         } else {
             LOGGER.info("cleaning old files");
             provideFiles().filter(file -> file.endsWith(".old")).map(File::new).forEach(File::delete);
+            return false;
         }
     }
 
