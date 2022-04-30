@@ -7,8 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -71,7 +70,7 @@ public class Updater implements AutoCloseable {
             provideFiles().filter(file -> file.endsWith(".old")).forEach(file -> {
                 String other = file.substring(0, file.length() - ".old".length());
                 new File(other).delete();
-                rename(file, other);
+                move(file, other);
             });
         } else {
             LOGGER.info("cleaning old files");
@@ -105,22 +104,26 @@ public class Updater implements AutoCloseable {
                 newFiles.add(name);
                 try (OutputStream out = new FileOutputStream(name + ".new")) {
                     for (int n = in.read(buffer); n > 0; n = in.read(buffer)) {
-                        out.write(buffer);
+                        out.write(buffer, 0, n);
                     }
                 }
             }
         }
 
-        LOGGER.info("replacing files");
-        if (!oldFiles.stream().map(file -> rename(file, file + ".old")).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
-            LOGGER.warning("backup failed");
-            return false;
+        LOGGER.info("backing up old files");
+        if (oldFiles.stream().map(file -> move(file, file + ".old")).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
+            LOGGER.info("replacing files");
+            if (!newFiles.stream().peek(file -> new File(file).delete()).map(file -> move(file + ".new", file)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
+                LOGGER.info("replacing failed");
+                return false;
+            }
+        } else {
+            LOGGER.info("overwriting files with new files");
+            if (!newFiles.stream().map(file -> move(file + ".new", file)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
+                LOGGER.info("overwriting failed");
+                return false;
+            }
         }
-        if (!newFiles.stream().peek(file -> new File(file).delete()).map(file -> rename(file + ".new", file)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
-            LOGGER.info("overwrite failed");
-            return false;
-        }
-
         LOGGER.info("update complete");
         return true;
     }
@@ -128,13 +131,35 @@ public class Updater implements AutoCloseable {
     private static Stream<String> provideFiles() throws IOException {
         return Files.walk(Paths.get("."))
                 .filter(Files::isRegularFile)
-                .filter(file -> !file.endsWith(".log"))
-                .map(file -> file.toUri().relativize(new File(".").getAbsoluteFile().toURI()).getPath())
-                .map(Object::toString);
+                .map(Object::toString)
+                .filter(file -> !file.endsWith(".log"));
     }
 
-    private static boolean rename(String old, String _new) {
-        return new File(old).renameTo(new File(_new));
+    private static boolean move(String old, String _new) {
+        if (new File(old).renameTo(new File(_new))) {
+            return true;
+        }
+        try {
+            Files.move(Path.of(old), Path.of(_new), StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        } catch (IOException e) {
+            // mimimi
+        }
+        try {
+            try (FileOutputStream out = new FileOutputStream(_new)) {
+                try (FileInputStream in = new FileInputStream(old)) {
+                    byte[] buffer = new byte[1024 * 4];
+                    for (int n = in.read(buffer); n > 0; n = in.read(buffer)) {
+                        out.write(buffer, 0, n);
+                    }
+                }
+            }
+            new File(old).delete();
+            return true; // haben fertisch
+        } catch (IOException e) {
+            // mimimi
+        }
+        return false;
     }
 
     private static final String VERSION_FILE = "./.version.txt";

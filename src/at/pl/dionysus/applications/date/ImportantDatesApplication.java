@@ -64,6 +64,7 @@ public class ImportantDatesApplication implements Application {
         else if (month == 12 && day == 24) return new XMas();
         else if (month == 2 && day == 14) return new ValentinesDay();
         else if (month == 10 && day == 31) return new Halloween();
+        // easter, new year
         return null;
     }
 
