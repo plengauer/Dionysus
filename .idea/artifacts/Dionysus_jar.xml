@@ -1,6 +1,6 @@
 <component name="ArtifactManager">
-  <artifact build-on-make="true" name="RazerChromaApplication:jar">
-    <output-path>$USER_HOME$/Scripts/Dionysus</output-path>
+  <artifact build-on-make="true" name="Dionysus:jar">
+    <output-path>$PROJECT_DIR$/out</output-path>
     <root id="root">
       <element id="archive" name="Dionysus.jar">
         <element id="module-output" name="Dionysus" />
