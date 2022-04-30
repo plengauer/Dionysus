@@ -57,7 +57,7 @@ public class Updater implements AutoCloseable {
                 Thread.currentThread().interrupt();
             } catch (IOException e) {
                 // mimimi nothing to do
-                LOGGER.log(Level.SEVERE, "error occured", e);
+                LOGGER.log(Level.SEVERE, "error", e);
             }
         }
     }
