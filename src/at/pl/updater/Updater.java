@@ -132,7 +132,10 @@ public class Updater implements AutoCloseable {
         return Files.walk(Paths.get("."))
                 .filter(Files::isRegularFile)
                 .map(Object::toString)
-                .filter(file -> !file.endsWith(".log"));
+                .filter(file -> !file.endsWith(".log"))
+                .filter(file -> !file.contains(".log."))
+                .filter(file -> !file.endsWith(".lck"))
+                .filter(file -> !file.endsWith(VERSION_FILE.substring(VERSION_FILE.lastIndexOf('/') + 1)));
     }
 
     private static boolean move(String old, String _new) {
