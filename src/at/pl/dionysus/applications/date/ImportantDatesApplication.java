@@ -61,10 +61,11 @@ public class ImportantDatesApplication implements Application {
         if (month == 10 && day == 26) return new Austria();
         else if (month == 7 && day == 14) return new France();
         else if (month == 10 && day == 3) return new Germany();
+        else if (month == 6 && day == 11) return new /* Russia() */ Ukraine();
         else if (month == 12 && day == 24) return new XMas();
         else if (month == 2 && day == 14) return new ValentinesDay();
         else if (month == 10 && day == 31) return new Halloween();
-        // easter, new year
+        else if (month == 12 && day == 31 || month == 1 && day == 1) return new NewYear();
         return null;
     }
 
