@@ -89,6 +89,7 @@ public class Updater implements AutoCloseable {
         }
 
         Set<String> oldFiles = provideFiles().collect(Collectors.toSet());
+        Set<String> newFiles = new HashSet<>();
 
         LOGGER.info("downloading");
         HttpResponse<InputStream> response = http.send(HttpRequest.newBuilder().GET().uri(URI.create(JSON.readField(json, "browser_download_url"))).build(), HttpResponse.BodyHandlers.ofInputStream());
@@ -96,7 +97,6 @@ public class Updater implements AutoCloseable {
             response = http.send(HttpRequest.newBuilder().GET().uri(URI.create(response.headers().firstValue("location").get())).build(), HttpResponse.BodyHandlers.ofInputStream());
         }
 
-        Set<String> newFiles = new HashSet<>();
         try (ZipInputStream in = new ZipInputStream(response.body())) {
             byte[] buffer = new byte[1024 * 4];
             for (ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
