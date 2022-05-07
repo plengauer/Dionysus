@@ -5,6 +5,8 @@ import at.pl.razer.chroma.Effect;
 import at.pl.razer.chroma.EffectPlayer;
 import at.pl.razer.chroma.SDK;
 import at.pl.razer.chroma.SingletonEffectPlayer;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Tracer;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -12,6 +14,7 @@ import java.util.logging.Logger;
 
 public class AlertApplication implements Application {
 
+    private static Tracer TRACER = GlobalOpenTelemetry.getTracer("dionysus", "1.0.0");
     private final Logger logger = Logger.getLogger(AlertApplication.class.getName());
     private final Thread thread = new Thread(this::run, "Alert Application Worker");
     private final int samplingPeriod;

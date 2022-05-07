@@ -2,11 +2,13 @@ package at.pl.dionysus.applications.weather;
 
 import at.pl.razer.chroma.Effect;
 import at.pl.dionysus.applications.Application;
-import at.pl.razer.chroma.EffectPlayer;
-import at.pl.razer.chroma.SDK;
 import at.pl.razer.chroma.SingletonEffectPlayer;
 import at.pl.razer.chroma.effects.StarlightEffect;
-import at.pl.razer.chroma.effects.StaticEffect;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -14,6 +16,7 @@ import java.util.logging.Logger;
 
 public class WeatherApplication implements Application {
 
+    private static Tracer TRACER = GlobalOpenTelemetry.getTracer("dionysus", "1.0.0");
     private final Logger logger = Logger.getLogger(WeatherApplication.class.getName());
     private final Thread thread = new Thread(this::run, "Date Application Worker");
     private final WeatherProvider weather;
@@ -45,17 +48,23 @@ public class WeatherApplication implements Application {
         while (!thread.isInterrupted()) {
             try {
                 Thread.sleep(Math.max(1, samplingPeriod));
-                String currentWeather = this.weather.get();
-                if (currentWeather != null && (weather == null || !currentWeather.equals(weather))) {
-                    logger.log(Level.INFO, "weather changed from \"{0}\" to \"{1}\"", new Object[] { weather, currentWeather });
-                    Effect effect = getEffect(currentWeather);
-                    if (effect != null) {
-                        try (SingletonEffectPlayer player = new SingletonEffectPlayer(getName(), getDescription(), effect)) {
-                            player.join(effectDuration);
+                Span span = TRACER.spanBuilder("Weather").setSpanKind(SpanKind.SERVER).startSpan();
+                try (Scope __ = span.makeCurrent()) {
+                    String currentWeather = this.weather.get();
+                    span.setAttribute("weather", currentWeather);
+                    boolean dirty = currentWeather != null && (weather == null || !currentWeather.equals(weather));
+                    span.setAttribute("changed", dirty);
+                    if (dirty) {
+                        logger.log(Level.INFO, "weather changed from \"{0}\" to \"{1}\"", new Object[] { weather, currentWeather });
+                        Effect effect = getEffect(currentWeather);
+                        if (effect != null) {
+                            try (SingletonEffectPlayer player = new SingletonEffectPlayer(getName(), getDescription(), effect)) {
+                                player.join(effectDuration);
+                            }
                         }
                     }
+                    weather = currentWeather;
                 }
-                weather = currentWeather;
             } catch (IOException e) {
                 logger.log(Level.WARNING, "", e);
             } catch (InterruptedException e) {
