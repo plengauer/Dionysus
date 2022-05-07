@@ -100,6 +100,9 @@ public class Updater implements AutoCloseable {
         try (ZipInputStream in = new ZipInputStream(response.body())) {
             byte[] buffer = new byte[1024 * 4];
             for (ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+                if (entry.getName().contains("/")) {
+                    Files.createDirectories(Path.of(entry.getName().substring(0, entry.getName().lastIndexOf('/'))));
+                }
                 String name = "./" + entry.getName();
                 LOGGER.info("expanding " + name);
                 newFiles.add(name);
@@ -134,7 +137,6 @@ public class Updater implements AutoCloseable {
                 .filter(Files::isRegularFile)
                 .map(Object::toString)
                 .filter(file -> !file.endsWith(".log"))
-                .filter(file -> !file.contains(".log."))
                 .filter(file -> !file.endsWith(".lck"))
                 .filter(file -> !file.endsWith(VERSION_FILE.substring(VERSION_FILE.lastIndexOf('/') + 1)));
     }
