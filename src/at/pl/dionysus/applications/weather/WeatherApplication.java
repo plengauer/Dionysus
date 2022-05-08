@@ -48,7 +48,7 @@ public class WeatherApplication implements Application {
         while (!thread.isInterrupted()) {
             try {
                 Thread.sleep(Math.max(1, samplingPeriod));
-                Span span = TRACER.spanBuilder("Weather").setSpanKind(SpanKind.SERVER).startSpan();
+                Span span = TRACER.spanBuilder("Weather").setSpanKind(SpanKind.CONSUMER).startSpan();
                 try (Scope __ = span.makeCurrent()) {
                     String currentWeather = this.weather.get();
                     span.setAttribute("weather", currentWeather);
@@ -64,6 +64,8 @@ public class WeatherApplication implements Application {
                         }
                     }
                     weather = currentWeather;
+                } finally {
+                    span.end();
                 }
             } catch (IOException e) {
                 logger.log(Level.WARNING, "", e);

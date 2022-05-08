@@ -42,10 +42,10 @@ public class ImportantDatesApplication implements Application {
                 LocalDate date = LocalDate.now();
                 int month = date.getMonth().getValue();
                 int day = date.getDayOfMonth();
-                Effect effect = getEffect(month, day);
+                Effect effect = getEffect(date.getYear(), month, day);
                 long rest = (60 * 60 * 24 - LocalTime.now().toSecondOfDay()) * 1000;
                 if (effect != null) {
-                    Span span = TRACER.spanBuilder("Important Dates").setSpanKind(SpanKind.SERVER).startSpan();
+                    Span span = TRACER.spanBuilder("Important Dates").setSpanKind(SpanKind.CONSUMER).startSpan();
                     span.setAttribute("month", month);
                     span.setAttribute("day", day);
                     try (Scope __ = span.makeCurrent()) {
@@ -54,6 +54,8 @@ public class ImportantDatesApplication implements Application {
                             logger.log(Level.FINE, "sleeping {0} secs", new Object[]{rest});
                             player.join(rest);
                         }
+                    } finally {
+                        span.end();
                     }
                 } else {
                     logger.log(Level.FINE, "sleeping {0} secs", new Object[] { rest });
@@ -66,17 +68,20 @@ public class ImportantDatesApplication implements Application {
         logger.info("stopped");
     }
 
-    private Effect getEffect(int month, int day) {
+    private Effect getEffect(int year, int month, int day) {
+        // recent events
+        if (month == 5 && day == 9) return new Ukraine();
         // national days
-        if (month == 10 && day == 26) return new Austria();
+        else if (month == 6 && day == 11) return new /* Russia() */ Ukraine();
         else if (month == 7 && day == 14) return new France();
         else if (month == 10 && day == 3) return new Germany();
-        else if (month == 6 && day == 11) return new /* Russia() */ Ukraine();
+        else if (month == 10 && day == 26) return new Austria();
         // important other dates
-        else if (month == 7 && day == 23) return new GayPride();
-        else if (month == 12 && day == 24) return new XMas();
         else if (month == 2 && day == 14) return new ValentinesDay();
+        else if (year >= Easter.FIRST_YEAR && month == Easter.MONTHS[year - Easter.FIRST_YEAR] && day == Easter.DAYS[year - Easter.FIRST_YEAR]) return new Easter();
+        else if (month == 7 && day == 23) return new GayPride();
         else if (month == 10 && day == 31) return new Halloween();
+        else if (month == 12 && day == 24) return new XMas();
         else if (month == 12 && day == 31 || month == 1 && day == 1) return new NewYear();
         return null;
     }

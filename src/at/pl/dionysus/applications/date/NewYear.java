@@ -1,6 +1,5 @@
 package at.pl.dionysus.applications.date;
 
-import at.pl.razer.chroma.Effect;
 import at.pl.razer.chroma.effects.StarlightEffect;
 
 public class NewYear extends StarlightEffect {
