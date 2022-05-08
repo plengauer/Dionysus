@@ -104,6 +104,7 @@ public class Updater implements AutoCloseable {
                     Files.createDirectories(Path.of(entry.getName().substring(0, entry.getName().lastIndexOf('/'))));
                 }
                 String name = "./" + entry.getName();
+                if (entry.isDirectory()) continue;
                 LOGGER.info("expanding " + name);
                 newFiles.add(name);
                 try (OutputStream out = new FileOutputStream(name + ".new")) {
