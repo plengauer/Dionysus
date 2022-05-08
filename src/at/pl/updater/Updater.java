@@ -129,6 +129,7 @@ public class Updater implements AutoCloseable {
             }
         }
         LOGGER.info("update complete");
+        saveCurrentVersion(date);
         return true;
     }
 
@@ -174,7 +175,6 @@ public class Updater implements AutoCloseable {
         if (!isNewerVersion(readCurrentVersion(), newVersion)) {
             return false;
         }
-        saveCurrentVersion(newVersion);
         return true;
     }
 
