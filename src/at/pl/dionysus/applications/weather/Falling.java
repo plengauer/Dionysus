@@ -96,7 +96,6 @@ public abstract class Falling implements Effect {
                     }
                     return Color.darker(color, ratio) | (ttl << (3*8));
                 }
-                // return row == 0 ? (Math.random() < coverage ? color : 0) : (prev != null ? prev.getColors()[row - 1][col] : 0);
             });
         }
     }
