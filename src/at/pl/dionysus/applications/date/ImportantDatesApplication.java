@@ -74,12 +74,14 @@ public class ImportantDatesApplication implements Application {
         // national days
         else if (month == 2 && day == 11) return new Japan();
         else if (month == 5 && day == 9) return new EuropeanUnion();
+        else if (month == 6 && day == 6) return new Sweden();
         else if (month == 6 && day == 11) return 2022 <= year && year <= 2023 ? new Ukraine() : new Russia();
         else if (month == 7 && day == 4) return new USA();
         else if (month == 7 && day == 14) return new France();
         else if (month == 8 && day == 24) return new Ukraine();
         else if (month == 10 && day == 3) return new Germany();
         else if (month == 10 && day == 26) return new Austria();
+        else if (month == 12 && day == 6) return new Finland();
         // important other dates
         else if (month == 2 && day == 14) return new ValentinesDay();
         else if (year >= Easter.FIRST_YEAR && month == Easter.MONTHS[year - Easter.FIRST_YEAR] && day == Easter.DAYS[year - Easter.FIRST_YEAR]) return new Easter();

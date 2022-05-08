@@ -11,6 +11,8 @@ public class TestEffect {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         try(SDK sdk = new SDK("Razer Chroma SDK RESTful Test Application", "This is a REST interface test application")) {
+            play(sdk, new Sweden());
+            play(sdk, new Finland());
             play(sdk, new EuropeanUnion());
             play(sdk, new USA());
             play(sdk, new Japan());
