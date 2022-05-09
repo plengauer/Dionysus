@@ -81,14 +81,15 @@ public class ImportantDatesApplication implements Application {
         else if (month == 8 && day == 24) return new Ukraine();
         else if (month == 10 && day == 3) return new Germany();
         else if (month == 10 && day == 26) return new Austria();
+        else if (month == 11 && day == 11) return new Poland();
         else if (month == 12 && day == 6) return new Finland();
         // important other dates
+        else if (month == 1 && day == 1) return new NewYear();
         else if (month == 2 && day == 14) return new ValentinesDay();
         else if (year >= Easter.FIRST_YEAR && month == Easter.MONTHS[year - Easter.FIRST_YEAR] && day == Easter.DAYS[year - Easter.FIRST_YEAR]) return new Easter();
         else if (month == 7 && day == 23) return new GayPride();
         else if (month == 10 && day == 31) return new Halloween();
         else if (month == 12 && day == 24) return new XMas();
-        else if (month == 12 && day == 31 || month == 1 && day == 1) return new NewYear();
         return null;
     }
 
