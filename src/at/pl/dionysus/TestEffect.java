@@ -11,6 +11,7 @@ public class TestEffect {
 
     public static void main(String[] args) throws IOException, InterruptedException {
         try(SDK sdk = new SDK("Razer Chroma SDK RESTful Test Application", "This is a REST interface test application")) {
+            play(sdk, new NewYear());
             play(sdk, new Sweden());
             play(sdk, new Finland());
             play(sdk, new EuropeanUnion());
@@ -25,13 +26,12 @@ public class TestEffect {
             play(sdk, new Easter());
             play(sdk, new Halloween());
             play(sdk, new XMas());
-            play(sdk, new NewYear());
         }
     }
 
     private static void play(SDK sdk, Effect effect) throws InterruptedException {
         try (EffectPlayer player = new EffectPlayer(sdk, effect)) {
-            player.join(1000 * 10);
+            player.join(1000 * 60);
         }
     }
 }

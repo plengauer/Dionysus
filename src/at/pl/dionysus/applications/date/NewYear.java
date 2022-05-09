@@ -6,20 +6,18 @@ import at.pl.razer.chroma.EffectFrame;
 import at.pl.razer.chroma.EffectFrameDefinition;
 import at.pl.razer.chroma.effects.Color;
 import at.pl.razer.chroma.effects.ComplexStaticEffectFrameDefinition;
-import at.pl.razer.chroma.effects.StaticEffect;
 
 import java.util.Random;
-import java.util.function.BiFunction;
 
 public class NewYear implements Effect {
 
-    private final long FRAME_DURATION = 1000 / 60;
+    private final long FRAME_DURATION = 100;
 
     private double x;
     private int age;
     private int color;
 
-    protected NewYear() {
+    public NewYear() {
         x = -1;
         age = 0;
     }
@@ -41,7 +39,7 @@ public class NewYear implements Effect {
                 case 2 -> 0x0000FF;
                 default -> 0xFFFFFF;
             };
-        } else if (age == 10) {
+        } else if (age == 15) {
             age = -1;
         } else {
             age++;
@@ -64,12 +62,10 @@ public class NewYear implements Effect {
             super(Device.KEYBOARD, map -> Color.fill(map, (row, col) -> {
                 if (age < 0) return 0x000000;
                 int cc = (int) (map[row].length * x);
-                int rc = 4;
-                if (col == cc && map[row].length - col < Math.min(age, 4)) return 0xFFFFFF;
-                int distance = age - 5;
-                if (distance > 0 && Math.abs(row - rc) < distance && Math.abs(col - cc) < distance && (row == rc || col == cc || Math.abs(row - rc) == Math.abs(col - cc))) {
-                    return color;
-                }
+                int rc = 2;
+                int distance = age - 7;
+                if (distance > 0 && Math.abs(row - rc) < distance && Math.abs(col - cc) < distance && (row == rc || col == cc || Math.abs(row - rc) == Math.abs(col - cc))) return color;
+                if (col == cc && map.length - row < Math.min(age, 6)) return 0xFFFFFF;
                 return 0x000000;
             }));
         }
