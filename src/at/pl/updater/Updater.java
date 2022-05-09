@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.*;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -65,16 +66,12 @@ public class Updater implements AutoCloseable {
         LOGGER.info("cleaning");
         if (provideFiles().anyMatch(file -> file.endsWith(".new"))) {
             LOGGER.info("cleaning new files and restoring old files");
-            provideFiles().filter(file -> file.endsWith(".new")).map(File::new).forEach(File::delete);
-            provideFiles().filter(file -> file.endsWith(".old")).forEach(file -> {
-                String other = file.substring(0, file.length() - ".old".length());
-                new File(other).delete();
-                move(file, other);
-            });
+            provideFiles().filter(file -> file.endsWith(".new")).map(File::new).forEach(Updater::delete);
+            provideFiles().filter(file -> file.endsWith(".old")).forEach(file -> move(file, file.substring(0, file.length() - ".old".length())));
             return true;
         } else {
             LOGGER.info("cleaning old files");
-            provideFiles().filter(file -> file.endsWith(".old")).map(File::new).forEach(File::delete);
+            provideFiles().filter(file -> file.endsWith(".old")).map(File::new).forEach(Updater::delete);
             return false;
         }
     }
@@ -89,7 +86,6 @@ public class Updater implements AutoCloseable {
         }
 
         Set<String> oldFiles = provideFiles().collect(Collectors.toSet());
-        Set<String> newFiles = new HashSet<>();
 
         LOGGER.info("downloading");
         HttpResponse<InputStream> response = http.send(HttpRequest.newBuilder().GET().uri(URI.create(JSON.readField(json, "browser_download_url"))).build(), HttpResponse.BodyHandlers.ofInputStream());
@@ -100,25 +96,32 @@ public class Updater implements AutoCloseable {
         try (ZipInputStream in = new ZipInputStream(response.body())) {
             byte[] buffer = new byte[1024 * 4];
             for (ZipEntry entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
-                if (entry.getName().contains("/")) {
-                    Files.createDirectories(Path.of(entry.getName().substring(0, entry.getName().lastIndexOf('/'))));
-                }
-                String name = "./" + entry.getName();
-                if (entry.isDirectory()) continue;
+                String name = entry.getName();
                 LOGGER.info("expanding " + name);
-                newFiles.add(name);
-                try (OutputStream out = new FileOutputStream(name + ".new")) {
-                    for (int n = in.read(buffer); n > 0; n = in.read(buffer)) {
-                        out.write(buffer, 0, n);
+                if (name.startsWith("./")) name = name.substring("./".length());
+                if (name.contains("/")) {
+                    int index = name.indexOf('/');
+                    name = name.substring(0, index) + ".new" + "/" + name.substring(index + 1);
+                    Files.createDirectories(Path.of(name.substring(0, name.lastIndexOf('/'))));
+                } else {
+                    name = name + ".new";
+                }
+                if (!entry.isDirectory()) {
+                    try (OutputStream out = new FileOutputStream(name)) {
+                        for (int n = in.read(buffer); n > 0; n = in.read(buffer)) {
+                            out.write(buffer, 0, n);
+                        }
                     }
                 }
             }
         }
 
+        Set<String> newFiles = provideFiles().filter(file -> file.endsWith(".new")).map(file -> file.substring(0, file.length() - ".new".length())).collect(Collectors.toSet());
+
         LOGGER.info("backing up old files");
         if (oldFiles.stream().map(file -> move(file, file + ".old")).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
             LOGGER.info("replacing files");
-            if (!newFiles.stream().peek(file -> new File(file).delete()).map(file -> move(file + ".new", file)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
+            if (!newFiles.stream().peek(file -> delete(new File(file))).map(file -> move(file + ".new", file)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
                 LOGGER.info("replacing failed");
                 return false;
             }
@@ -135,24 +138,34 @@ public class Updater implements AutoCloseable {
     }
 
     private static Stream<String> provideFiles() throws IOException {
-        return Files.walk(Paths.get("."))
-                .filter(Files::isRegularFile)
+        return Arrays.stream(new File(".").listFiles())
                 .map(Object::toString)
+                .filter(file -> !file.equals("."))
                 .filter(file -> !file.endsWith(".log"))
                 .filter(file -> !file.endsWith(".lck"))
                 .filter(file -> !file.endsWith(VERSION_FILE.substring(VERSION_FILE.lastIndexOf('/') + 1)));
     }
 
-    private static boolean move(String old, String _new) {
-        if (new File(old).renameTo(new File(_new))) {
-            return true;
+    private static void delete(File file) {
+        if (file.isDirectory()) {
+            for (File child : file.listFiles()) delete(child);
         }
+        file.delete();
+    }
+
+    private static boolean move(String old, String _new) {
+        if (new File(_new).exists()) delete(new File(_new));
+        if (new File(old).renameTo(new File(_new))) return true;
+        // TODO "The process cannot access the file because it is being used by another process"
+        // apparently java cannot rename a file that is in use like c# can ...
+        // which means it is deep copied instead, and the original file stays in use
         try {
-            Files.move(Path.of(old), Path.of(_new), StandardCopyOption.REPLACE_EXISTING);
+            Files.move(Path.of(old), Path.of(_new), StandardCopyOption.ATOMIC_MOVE);
             return true;
         } catch (IOException e) {
             // mimimi
         }
+        if (Files.isDirectory(Path.of(old))) return false;
         try {
             try (FileOutputStream out = new FileOutputStream(_new)) {
                 try (FileInputStream in = new FileInputStream(old)) {

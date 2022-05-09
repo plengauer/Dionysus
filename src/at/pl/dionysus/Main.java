@@ -50,6 +50,8 @@ public class Main {
                 return new Application[] {
                         new WeatherApplication(0, 1000 * 60, new WeatherSimulator()),
                 };
+            case "none":
+                return new Application[0];
             default:
                 throw new IllegalArgumentException();
         }
