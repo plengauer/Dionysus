@@ -11,6 +11,8 @@ import java.nio.file.*;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -24,6 +26,7 @@ public class Updater implements AutoCloseable {
 
     private final String githubRepository;
     private final Action restart;
+    private final Supplier<Boolean> test;
     private final Thread thread;
     private final HttpClient http;
 
@@ -32,9 +35,10 @@ public class Updater implements AutoCloseable {
         void execute() throws IOException;
     }
 
-    public Updater(String githubRepository, Action restart) {
+    public Updater(String githubRepository, Action restart, Supplier<Boolean> test) {
         this.githubRepository = githubRepository;
         this.restart = restart;
+        this.test = test;
         thread = new Thread(this::run);
         http = HttpClient.newHttpClient();
 
@@ -133,6 +137,10 @@ public class Updater implements AutoCloseable {
             }
         }
         LOGGER.info("update complete");
+        if (!test.get()) {
+            LOGGER.info("verification failed");
+            return false;
+        }
         saveCurrentVersion(date);
         return true;
     }
