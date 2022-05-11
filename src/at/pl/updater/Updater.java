@@ -69,13 +69,15 @@ public class Updater implements AutoCloseable {
     private boolean cleanup() throws IOException {
         LOGGER.info("cleaning");
         if (provideFiles().anyMatch(file -> file.endsWith(".new"))) {
-            LOGGER.info("cleaning new files and restoring old files");
+            LOGGER.info("deleting new files and restoring old files");
             provideFiles().filter(file -> file.endsWith(".new")).map(File::new).forEach(Updater::delete);
-            provideFiles().filter(file -> file.endsWith(".old")).forEach(file -> move(file, file.substring(0, file.length() - ".old".length())));
+            provideFiles().filter(file -> file.endsWith(".old")).forEach(file -> move(file, file.substring(0, file.length() - ".old".length()), true));
             return true;
-        } else {
-            LOGGER.info("cleaning old files");
+        } else if (provideFiles().anyMatch(file -> file.endsWith(".old"))) {
+            LOGGER.info("deleting old files");
             provideFiles().filter(file -> file.endsWith(".old")).map(File::new).forEach(Updater::delete);
+            return false;
+        } else {
             return false;
         }
     }
@@ -122,30 +124,29 @@ public class Updater implements AutoCloseable {
 
         Set<String> newFiles = provideFiles().filter(file -> file.endsWith(".new")).map(file -> file.substring(0, file.length() - ".new".length())).collect(Collectors.toSet());
 
-        LOGGER.info("backing up old files");
-        if (oldFiles.stream().map(file -> move(file, file + ".old")).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
-            LOGGER.info("replacing files");
-            if (!newFiles.stream().peek(file -> delete(new File(file))).map(file -> move(file + ".new", file)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
-                LOGGER.info("replacing failed");
-                return false;
-            }
-        } else {
-            LOGGER.info("overwriting files with new files");
-            if (!newFiles.stream().map(file -> move(file + ".new", file)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
-                LOGGER.info("overwriting failed");
-                return false;
-            }
+        LOGGER.info("backing up files");
+        if (!oldFiles.stream().map(file -> move(file, file + ".old", false)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
+            LOGGER.info("backing up files failed");
+            cleanup();
+            return false;
         }
-        LOGGER.info("update complete");
+        LOGGER.info("replacing files");
+        if (!newFiles.stream().peek(file -> delete(new File(file))).map(file -> move(file + ".new", file, true)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
+            LOGGER.info("replacing files failed");
+            cleanup();
+            return false;
+        }
+        LOGGER.info("testing");
         if (!test.get()) {
             LOGGER.info("verification failed");
             return false;
         }
+        LOGGER.info("update complete");
         saveCurrentVersion(date);
         return true;
     }
 
-    private static Stream<String> provideFiles() throws IOException {
+    private static Stream<String> provideFiles() {
         return Arrays.stream(new File(".").listFiles())
                 .map(Object::toString)
                 .filter(file -> !file.equals("."))
@@ -158,12 +159,15 @@ public class Updater implements AutoCloseable {
         if (file.isDirectory()) {
             for (File child : file.listFiles()) delete(child);
         }
-        file.delete();
+        boolean deleted = file.delete();
+        LOGGER.info(() -> "delete " + file + " (" + (deleted ? "success" : "failure") + ")");
     }
 
-    private static boolean move(String old, String _new) {
+    private static boolean move(String old, String _new, boolean canDeepCopy) {
         if (new File(_new).exists()) delete(new File(_new));
+        LOGGER.info(() -> "moving " + old + " to " + _new);
         if (new File(old).renameTo(new File(_new))) return true;
+        LOGGER.info(() -> "moving " + old + " to " + _new + " phase \"rename\": failed");
         // TODO "The process cannot access the file because it is being used by another process"
         // apparently java cannot rename a file that is in use like c# can ...
         // which means it is deep copied instead, and the original file stays in use
@@ -172,8 +176,9 @@ public class Updater implements AutoCloseable {
             return true;
         } catch (IOException e) {
             // mimimi
+            LOGGER.info(() -> "moving " + old + " to " + _new + " phase \"move\": " + e.getMessage());
         }
-        if (Files.isDirectory(Path.of(old))) return false;
+        if (Files.isDirectory(Path.of(old)) || !canDeepCopy) return false;
         try {
             try (FileOutputStream out = new FileOutputStream(_new)) {
                 try (FileInputStream in = new FileInputStream(old)) {
@@ -187,7 +192,9 @@ public class Updater implements AutoCloseable {
             return true; // haben fertisch
         } catch (IOException e) {
             // mimimi
+            LOGGER.info(() -> "moving " + old + " to " + _new + " phase \"copy\": " + e.getMessage());
         }
+        LOGGER.info(() -> "moving " + old + " to " + _new + " (failed)");
         return false;
     }
 
