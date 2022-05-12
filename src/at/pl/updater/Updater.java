@@ -127,6 +127,7 @@ public class Updater implements AutoCloseable {
         LOGGER.info("backing up files");
         if (!oldFiles.stream().map(file -> move(file, file + ".old", false)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
             LOGGER.info("backing up files failed");
+            // i could not cleanup and restart here ...
             cleanup();
             return false;
         }
