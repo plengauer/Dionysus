@@ -124,16 +124,24 @@ public class Updater implements AutoCloseable {
 
         Set<String> newFiles = provideFiles().filter(file -> file.endsWith(".new")).map(file -> file.substring(0, file.length() - ".new".length())).collect(Collectors.toSet());
 
+        String externalUpdate = System.getProperty("external-update-file", null);
         LOGGER.info("backing up files");
         if (!oldFiles.stream().map(file -> move(file, file + ".old", false)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
             LOGGER.info("backing up files failed");
-            // i could not cleanup and restart here ...
+            if (externalUpdate != null) {
+                new File(externalUpdate).createNewFile();
+                return true;
+            }
             cleanup();
             return false;
         }
         LOGGER.info("replacing files");
         if (!newFiles.stream().peek(file -> delete(new File(file))).map(file -> move(file + ".new", file, true)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
             LOGGER.info("replacing files failed");
+            if (externalUpdate != null) {
+                new File(externalUpdate).createNewFile();
+                return true;
+            }
             cleanup();
             return false;
         }
