@@ -9,9 +9,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.*;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -21,6 +19,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class Updater implements AutoCloseable {
+
+    private static final String VERSION_FILE = "./.version.txt";
+    private static final String EXTERNAL_UPDATE_FILE = "./.external_update.txt";
 
     private static final Logger LOGGER = Logger.getLogger(Updater.class.getName());
 
@@ -124,12 +125,15 @@ public class Updater implements AutoCloseable {
 
         Set<String> newFiles = provideFiles().filter(file -> file.endsWith(".new")).map(file -> file.substring(0, file.length() - ".new".length())).collect(Collectors.toSet());
 
-        String externalUpdate = System.getProperty("external-update-file", null);
         LOGGER.info("backing up files");
         if (!oldFiles.stream().map(file -> move(file, file + ".old", false)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
             LOGGER.info("backing up files failed");
-            if (externalUpdate != null) {
-                new File(externalUpdate).createNewFile();
+            if (System.getProperty("external-update", "false").equals("true")) {
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(EXTERNAL_UPDATE_FILE))) {
+                    writer.write(date);
+                } catch (IOException e) {
+                    // mimimi
+                }
                 return true;
             }
             cleanup();
@@ -138,8 +142,12 @@ public class Updater implements AutoCloseable {
         LOGGER.info("replacing files");
         if (!newFiles.stream().peek(file -> delete(new File(file))).map(file -> move(file + ".new", file, true)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
             LOGGER.info("replacing files failed");
-            if (externalUpdate != null) {
-                new File(externalUpdate).createNewFile();
+            if (System.getProperty("external-update", "false").equals("true")) {
+                try (BufferedWriter writer = new BufferedWriter(new FileWriter(EXTERNAL_UPDATE_FILE))) {
+                    writer.write(date);
+                } catch (IOException e) {
+                    // mimimi
+                }
                 return true;
             }
             cleanup();
@@ -177,9 +185,6 @@ public class Updater implements AutoCloseable {
         LOGGER.info(() -> "moving " + old + " to " + _new);
         if (new File(old).renameTo(new File(_new))) return true;
         LOGGER.info(() -> "moving " + old + " to " + _new + " phase \"rename\": failed");
-        // TODO "The process cannot access the file because it is being used by another process"
-        // apparently java cannot rename a file that is in use like c# can ...
-        // which means it is deep copied instead, and the original file stays in use
         try {
             Files.move(Path.of(old), Path.of(_new), StandardCopyOption.ATOMIC_MOVE);
             return true;
@@ -206,8 +211,6 @@ public class Updater implements AutoCloseable {
         LOGGER.info(() -> "moving " + old + " to " + _new + " (failed)");
         return false;
     }
-
-    private static final String VERSION_FILE = "./.version.txt";
 
     private boolean isNewerVersion(String newVersion) {
         if (!isNewerVersion(readCurrentVersion(), newVersion)) {
