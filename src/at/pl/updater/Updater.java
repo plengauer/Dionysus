@@ -123,33 +123,24 @@ public class Updater implements AutoCloseable {
             }
         }
 
-        Set<String> newFiles = provideFiles().filter(file -> file.endsWith(".new")).map(file -> file.substring(0, file.length() - ".new".length())).collect(Collectors.toSet());
+        if (System.getProperty("external-update", "false").equals("true")) {
+            LOGGER.info("proceeding update externally");
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(EXTERNAL_UPDATE_FILE))) {
+                writer.write(date);
+            } catch (IOException e) {}
+            return true;
+        }
 
+        Set<String> newFiles = provideFiles().filter(file -> file.endsWith(".new")).map(file -> file.substring(0, file.length() - ".new".length())).collect(Collectors.toSet());
         LOGGER.info("backing up files");
         if (!oldFiles.stream().map(file -> move(file, file + ".old", false)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
             LOGGER.info("backing up files failed");
-            if (System.getProperty("external-update", "false").equals("true")) {
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(EXTERNAL_UPDATE_FILE))) {
-                    writer.write(date);
-                } catch (IOException e) {
-                    // mimimi
-                }
-                return true;
-            }
             cleanup();
             return false;
         }
         LOGGER.info("replacing files");
         if (!newFiles.stream().peek(file -> delete(new File(file))).map(file -> move(file + ".new", file, true)).collect(Collectors.reducing(Boolean.TRUE, (b1, b2) -> b1.booleanValue() && b2.booleanValue()))) {
             LOGGER.info("replacing files failed");
-            if (System.getProperty("external-update", "false").equals("true")) {
-                try (BufferedWriter writer = new BufferedWriter(new FileWriter(EXTERNAL_UPDATE_FILE))) {
-                    writer.write(date);
-                } catch (IOException e) {
-                    // mimimi
-                }
-                return true;
-            }
             cleanup();
             return false;
         }

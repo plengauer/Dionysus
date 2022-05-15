@@ -23,7 +23,7 @@ public class Main {
         for (;;) {
             try {
                 try (SDK sdk = new SDK("Intro", "intro")) {
-                    try (EffectPlayer player = new EffectPlayer(sdk, new Flashing(1000, 0xFF0000, 0xFF8800, 0x00FF00))) {
+                    try (EffectPlayer player = new EffectPlayer(sdk, new Flashing(1000 * 10, 0xFF0000, 0xFF8800, 0x00FF00))) {
                         player.join(1000 * 10);
                     }
                 }
