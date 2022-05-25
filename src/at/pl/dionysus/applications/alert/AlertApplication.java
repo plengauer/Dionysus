@@ -2,7 +2,6 @@ package at.pl.dionysus.applications.alert;
 
 import at.pl.dionysus.applications.Application;
 import at.pl.razer.chroma.Effect;
-import at.pl.razer.chroma.EffectPlayer;
 import at.pl.razer.chroma.SDK;
 import at.pl.razer.chroma.SingletonEffectPlayer;
 import io.opentelemetry.api.GlobalOpenTelemetry;

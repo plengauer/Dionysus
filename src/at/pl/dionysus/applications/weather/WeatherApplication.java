@@ -18,7 +18,7 @@ public class WeatherApplication implements Application {
 
     private static Tracer TRACER = GlobalOpenTelemetry.getTracer("dionysus", "1.0.0");
     private final Logger logger = Logger.getLogger(WeatherApplication.class.getName());
-    private final Thread thread = new Thread(this::run, "Date Application Worker");
+    private final Thread thread = new Thread(this::run, "Weather Application Worker");
     private final WeatherProvider weather;
     private final long samplingPeriod;
     private final long effectDuration;
