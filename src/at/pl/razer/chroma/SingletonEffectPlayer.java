@@ -27,58 +27,61 @@ public class SingletonEffectPlayer implements java.io.Closeable {
     private final Thread thread;
 
     public SingletonEffectPlayer(String title, String description, Effect effect) {
+        Span current = Span.current();
         this.title = title;
         this.description = description;
         this.effect = effect;
-        this.thread = new Thread(this::run);
+        this.thread = new Thread(() -> run(current));
 
         thread.start();
     }
 
-    private void run() {
+    private void run(Span parent) {
         logger.info("running");
         synchronized (MONITOR) {
             PLAYERS.push(this);
             MONITOR.notifyAll();
         }
         while (!Thread.currentThread().isInterrupted()) {
-            Span span = TRACER.spanBuilder("Razer Chroma Singleton Effect Player").setSpanKind(SpanKind.SERVER).startSpan();
-            span.setAttribute("title", title);
-            span.setAttribute("description", description);
-            try (Scope __ = span.makeCurrent()) {
-                synchronized (MONITOR) {
-                    if (PLAYERS.peek() == this) {
-                        try {
-                            while (RUNNING) {
-                                MONITOR.wait();
-                            }
-                            RUNNING = true;
-                            try (SDK sdk = new SDK(title, description)) {
-                                try (EffectPlayer player = new EffectPlayer(sdk, effect)) {
-                                    // player.join();
-                                    while (player.isRunning() && PLAYERS.peek() == this) {
-                                        MONITOR.wait(1000 * 1);
+            try (Scope ___ = parent.makeCurrent()) {
+                Span span = TRACER.spanBuilder("Razer Chroma Singleton Effect Player").startSpan();
+                span.setAttribute("title", title);
+                span.setAttribute("description", description);
+                try (Scope __ = span.makeCurrent()) {
+                    synchronized (MONITOR) {
+                        if (PLAYERS.peek() == this) {
+                            try {
+                                while (RUNNING) {
+                                    MONITOR.wait();
+                                }
+                                RUNNING = true;
+                                try (SDK sdk = new SDK(title, description)) {
+                                    try (EffectPlayer player = new EffectPlayer(sdk, effect)) {
+                                        // player.join();
+                                        while (player.isRunning() && PLAYERS.peek() == this) {
+                                            MONITOR.wait(1000 * 1);
+                                        }
                                     }
                                 }
+                            } catch (IOException e) {
+                                logger.log(Level.SEVERE, "", e);
+                            } finally {
+                                RUNNING = false;
+                                MONITOR.notifyAll();
                             }
-                        } catch (IOException e) {
-                            logger.log(Level.SEVERE, "", e);
-                        } finally {
-                            RUNNING = false;
-                            MONITOR.notifyAll();
-                        }
-                    } else {
-                        try {
-                            MONITOR.wait();
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
+                        } else {
+                            try {
+                                MONITOR.wait();
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
                         }
                     }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    span.end();
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                span.end();
             }
         }
         synchronized (MONITOR) {

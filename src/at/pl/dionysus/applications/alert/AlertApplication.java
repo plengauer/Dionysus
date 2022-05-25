@@ -6,7 +6,10 @@ import at.pl.razer.chroma.EffectPlayer;
 import at.pl.razer.chroma.SDK;
 import at.pl.razer.chroma.SingletonEffectPlayer;
 import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -44,44 +47,62 @@ public class AlertApplication implements Application {
         logger.info("running");
         SingletonEffectPlayer player = null;
         AlertLevel prevLevel = AlertLevel.NONE;
+        Span span = null;
         while (!thread.isInterrupted()) {
             try {
                 if (player != null) {
                     player.join(samplingPeriod);
                     if (!player.isRunning()) {
                         player = null;
+                        if (span != null) {
+                            span.end();
+                            span = null;
+                        }
                     }
                 } else {
                     Thread.sleep(samplingPeriod);
                 }
-                AlertLevel level = getAlertLevel();
-                if (level != prevLevel) {
-                    logger.log(Level.INFO, "alert level changed from {0} to {1}", new Object[] { prevLevel, level });
-                    if (level == AlertLevel.NONE) {
-                        if (player != null) {
-                            player.close();
-                            player = null;
-                        }
-                    } else {
-                        Effect effect = null;
-                        if (level == AlertLevel.SEVERE) {
-                            effect = new Alert(1000, 0xFF0000);
-                        } else if (level == AlertLevel.WARNING) {
-                            effect = new Alert(1000 * 2, 0xFCBA03);
-                        }
-                        if (player != null) {
-                            player.close();
-                        }
-                        player = new SingletonEffectPlayer(getName(), getDescription(), effect);
-                    }
+                if (span == null) {
+                    span = TRACER.spanBuilder("Alert").setSpanKind(SpanKind.CONSUMER).startSpan();
                 }
-                prevLevel = level;
+                try (Scope __ = span.makeCurrent()) {
+                    AlertLevel level = getAlertLevel();
+                    span.setAttribute("level", level.name());
+                    if (level != prevLevel) {
+                        logger.log(Level.INFO, "alert level changed from {0} to {1}", new Object[] { prevLevel, level });
+                        if (level == AlertLevel.NONE) {
+                            if (player != null) {
+                                player.close();
+                                player = null;
+                            }
+                            if (span != null) {
+                                span.end();
+                                span = null;
+                            }
+                        } else {
+                            Effect effect = null;
+                            if (level == AlertLevel.SEVERE) {
+                                effect = new Alert(1000, 0xFF0000);
+                            } else if (level == AlertLevel.WARNING) {
+                                effect = new Alert(1000 * 2, 0xFCBA03);
+                            }
+                            if (player != null) {
+                                player.close();
+                            }
+                            player = new SingletonEffectPlayer(getName(), getDescription(), effect);
+                        }
+                    }
+                    prevLevel = level;
+                }
             } catch (InterruptedException e) {
                 thread.interrupt();
             }
         }
         if (player != null) {
             player.close();
+        }
+        if (span != null) {
+            span.end();
         }
         logger.info("stopped");
     }
