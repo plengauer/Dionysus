@@ -1,11 +1,8 @@
 name: Autorerun
 
 on:
-  workflow_run:
-    types: completed
-
-concurrency:
-  group: rerun-${{ github.event.workflow_run.id }}
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   rerun:
