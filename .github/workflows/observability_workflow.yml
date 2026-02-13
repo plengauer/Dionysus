@@ -6,6 +6,7 @@ on:
       - .github/workflows/copilot-setup-steps.yml
       - Autorerun
       - Autoversion
+      - Copilot code review
       - Copilot coding agent
       - Renovate
     types:
